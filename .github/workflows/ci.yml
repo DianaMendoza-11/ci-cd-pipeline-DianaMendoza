@@ -1,0 +1,63 @@
+name: Node CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Cache node modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - run: npm install
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run tests with coverage
+        run: |
+          npm run test -- --coverage
+          mkdir -p artifacts && cp -r coverage artifacts/
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: artifacts/
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && success()
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Simulate deployment
+        run: echo "Aquí se haría el deploy a GitHub Pages, Heroku, etc."
+
+      - name: Notify Success
+        if: success()
+        run: echo "✅ Deployment exitoso"
+
+      - name: Notify Failure
+        if: failure()
+        run: echo "❌ Falló el deployment"
